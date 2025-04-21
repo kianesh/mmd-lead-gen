@@ -25,3 +25,6 @@ Thumbs.db
 # Backup and temporary files
 *.bak
 *.swp
+
+# Environment Files
+*.env

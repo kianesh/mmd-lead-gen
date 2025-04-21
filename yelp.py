@@ -1,6 +1,7 @@
 import os
 import time
 
+import openai
 import pandas as pd
 from dotenv import load_dotenv
 from yelpapi import YelpAPI
@@ -11,6 +12,8 @@ load_dotenv()
 # Retrieve the Yelp API credentials from the environment
 CLIENT_ID = os.getenv('YELP_CLIENT_ID')
 API_KEY = os.getenv('YELP_API_KEY')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
 if not CLIENT_ID or not API_KEY:
     print("Error: Yelp API credentials are not set in the .env file.")
@@ -18,6 +21,25 @@ if not CLIENT_ID or not API_KEY:
 
 # Initialize YelpAPI with the API key
 yelp_api = YelpAPI(API_KEY)
+
+def analyze_online_presence(name, city):
+    prompt = (
+        f"Research the business '{name}' in '{city}'. "
+        "Does it have a Google Business Profile? "
+        "Summarize its online presence in 1-2 sentences. "
+        "Return a short, structured answer."
+    )
+    try:
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # or "gpt-4" if available
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+            temperature=0.2,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"LLM error: {e}"
 
 def get_yelp_results(city, category, pages=1):
     all_leads = []
@@ -52,12 +74,15 @@ def get_yelp_results(city, category, pages=1):
             if not phone:
                 score += 2
 
+            online_presence = analyze_online_presence(name, city)
+
             all_leads.append({
                 "Name": name,
                 "Phone": phone,
                 "Website": website,
                 "Yelp URL": yelp_url,
-                "Score": score
+                "Score": score,
+                "Online Presence": online_presence
             })
 
         time.sleep(2)  # Be polite to Yelp API
